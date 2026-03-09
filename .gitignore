@@ -1,0 +1,55 @@
+# OS / Editors
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+build/
+dist/
+site/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+agent/.venv/
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+agent/.env
+agent/.env.*
+!agent/.env.example
+
+# Logs
+*.log
+logs/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Node / Frontend (if used in ui)
+node_modules/
+ui/node_modules/
+ui/.next/
+ui/dist/
+ui/build/
+ui/.env
+ui/.env.*
+!ui/.env.example
