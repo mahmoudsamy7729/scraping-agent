@@ -1,11 +1,15 @@
 from fastapi import FastAPI, APIRouter
 from src.scrapling_agent.router import router as scrapling_agent_router
+from src.logging import setup_logging
 
 
+setup_logging()
 
 app = FastAPI()
 
 main_router = APIRouter(prefix="/api")
+
+
 
 
 app.include_router(scrapling_agent_router, prefix="/scrapling-agent")
