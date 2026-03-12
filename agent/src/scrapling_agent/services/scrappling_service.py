@@ -3,23 +3,21 @@ from mcp import StdioServerParameters
 from src.utils import AgentRunner
 from src.config import settings
 from src.scrapling_agent.constants import SYSTEM_PROMPT
+from src.scrapling_agent.client import ScraplingClient
 from src.logging import logger
 
 
 class ScraplingService:
     def __init__(self):
-        self.client = OpenAI(
-            api_key=settings.groq_api_key,
-            base_url=settings.groq_base_url
-        )
+        self.scrapling_client = ScraplingClient()
 
-        self.model="openai/gpt-oss-120b"
+        self.model="gpt-oss:120b-cloud"
         self.mcp_server=StdioServerParameters(
             command="scrapling", args=["mcp"]
         )
 
         self.agent_runner = AgentRunner(
-            client=self.client,
+            client=self.scrapling_client.client,
             model=self.model,
             local_tool_map={},
             tools=[],
