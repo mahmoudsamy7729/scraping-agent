@@ -1,11 +1,10 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
+from src.scrapling_agent.dependencies import get_scrapling_service
 from src.scrapling_agent.services.scrappling_service import ScraplingService
 
 
 
 router = APIRouter()
-
-scrapling_service = ScraplingService()
 
 @router.get('/health-check')
 async def health_check():
@@ -13,6 +12,9 @@ async def health_check():
 
 
 @router.post('/run-agent')
-async def run_agent(prompt: str):
+async def run_agent(
+    prompt: str,
+    scrapling_service: ScraplingService = Depends(get_scrapling_service),
+):
     response = await scrapling_service.run_agent(prompt)
     return {'response': response}
