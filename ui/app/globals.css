@@ -1,200 +1,491 @@
 :root {
-  color-scheme: light;
-  --bg: #f5f7fb;
-  --panel: #ffffff;
-  --text: #1f2937;
-  --muted: #6b7280;
-  --primary: #0f766e;
-  --primary-strong: #115e59;
-  --danger: #b91c1c;
-  --border: #d1d5db;
+  --bg-main: #060b14;
+  --bg-panel: #0c1220;
+  --bg-soft: #121a2c;
+  --line: rgba(95, 121, 180, 0.2);
+  --text-strong: #f0f5ff;
+  --text-muted: #8ea3cb;
+  --cyan: #27e8ff;
+  --green: #22c55e;
+  --amber: #fbbf24;
+  --red: #f43f5e;
+  --idle: #94a3b8;
 }
 
 * {
   box-sizing: border-box;
 }
 
+html,
 body {
   margin: 0;
-  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-  background: radial-gradient(circle at 10% 10%, #e0f2fe 0%, transparent 35%), var(--bg);
-  color: var(--text);
+  min-height: 100%;
 }
 
-.page {
+body {
+  color: var(--text-strong);
+  font-family: var(--font-body), "Segoe UI", sans-serif;
+  background: radial-gradient(circle at 18% -8%, rgba(39, 232, 255, 0.12), transparent 32%),
+    radial-gradient(circle at 90% 15%, rgba(100, 60, 255, 0.12), transparent 35%),
+    var(--bg-main);
+}
+
+h1,
+h2,
+h3,
+.eyebrow,
+.agentName,
+.agentStatus,
+.systemBadge {
+  font-family: var(--font-display), "Segoe UI", sans-serif;
+  letter-spacing: 0.03em;
+}
+
+.dashboardPage {
+  position: relative;
   min-height: 100vh;
-  padding: 32px 16px;
+  overflow: hidden;
+  padding: 28px 14px 42px;
 }
 
-.container {
+.gridBackdrop {
+  position: absolute;
+  inset: 0;
+  background-image: linear-gradient(var(--line) 1px, transparent 1px), linear-gradient(90deg, var(--line) 1px, transparent 1px);
+  background-size: 42px 42px;
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+.shell {
+  position: relative;
+  z-index: 1;
+  width: min(1380px, 100%);
   margin: 0 auto;
-  width: min(980px, 100%);
   display: grid;
-  gap: 16px;
+  gap: 18px;
 }
 
-.header h1 {
-  margin: 4px 0 8px;
+.topBar {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 14px;
 }
 
 .eyebrow {
   margin: 0;
-  color: var(--primary);
-  font-weight: 700;
-  letter-spacing: 0.08em;
+  color: #8bd9ff;
   text-transform: uppercase;
-  font-size: 12px;
+  font-size: 0.78rem;
+}
+
+h1 {
+  margin: 6px 0;
+  font-size: clamp(1.4rem, 2.3vw, 2.1rem);
 }
 
 .subtitle {
   margin: 0;
-  color: var(--muted);
+  color: var(--text-muted);
 }
 
-.card {
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  padding: 16px;
-  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.06);
+.systemBadge {
+  align-self: center;
+  border: 1px solid rgba(34, 197, 94, 0.55);
+  color: #72fcb4;
+  background: rgba(16, 53, 32, 0.55);
+  border-radius: 999px;
+  padding: 10px 14px;
+  font-size: 0.8rem;
+  text-transform: uppercase;
 }
 
-.label {
-  display: block;
-  font-size: 14px;
-  font-weight: 600;
-  margin-bottom: 8px;
+.kpiGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
 }
 
-.row {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
+.kpiCard,
+.agentCard,
+.sideCard,
+.activityCard {
+  border: 1px solid rgba(98, 123, 180, 0.25);
+  border-radius: 16px;
+  background: linear-gradient(145deg, rgba(18, 27, 44, 0.87), rgba(11, 16, 27, 0.92));
+  box-shadow: inset 0 0 0 1px rgba(87, 136, 255, 0.05), 0 18px 40px rgba(0, 0, 0, 0.28);
 }
 
-.input,
-.textarea {
-  width: 100%;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 10px 12px;
-  font-size: 14px;
-  outline: none;
+.kpiCard {
+  padding: 18px;
+  display: grid;
+  gap: 6px;
 }
 
-.input:focus,
-.textarea:focus {
-  border-color: var(--primary);
+.kpiCard p {
+  margin: 0;
+  text-transform: uppercase;
+  font-size: 0.72rem;
+  color: #85a4d5;
 }
 
-.input {
-  flex: 1;
-  min-width: 260px;
+.kpiCard h2 {
+  margin: 0;
+  font-size: clamp(1.5rem, 2.7vw, 2rem);
 }
 
-.textarea {
-  resize: vertical;
+.kpiCard span {
+  font-size: 0.78rem;
+  color: var(--text-muted);
 }
 
-.actions {
-  margin-top: 10px;
-  display: flex;
-  justify-content: flex-end;
+.mainBoard {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);
+  gap: 14px;
 }
 
-.button {
-  border: none;
-  background: var(--primary);
-  color: #fff;
-  border-radius: 10px;
-  padding: 10px 16px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.button:hover:not(:disabled) {
-  background: var(--primary-strong);
-}
-
-.button:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.button.secondary {
-  background: #0f172a;
-}
-
-.status {
-  margin: 10px 0 0;
-  font-size: 14px;
-}
-
-.status.online {
-  color: #166534;
-}
-
-.status.offline {
-  color: var(--danger);
-}
-
-.status.checking {
-  color: #1d4ed8;
-}
-
-.status.idle,
-.muted {
-  color: var(--muted);
-}
-
-h2 {
-  margin: 0 0 12px;
-}
-
-.history {
+.leftStack {
   display: grid;
   gap: 10px;
 }
 
-.historyItem {
-  border: 1px solid #e5e7eb;
-  border-radius: 10px;
-  padding: 12px;
-  background: #f9fafb;
+.sectionHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: #84a1d4;
 }
 
-.historyItem p {
-  margin: 0 0 8px;
-}
-
-.response {
+.sectionHeader h3,
+.sideCard h3,
+.activityCard h3 {
   margin: 0;
-  background: #111827;
-  color: #e5e7eb;
-  border-radius: 8px;
-  padding: 10px;
-  overflow: auto;
-  font-size: 12px;
+  text-transform: uppercase;
+  font-size: 0.95rem;
 }
 
-.error {
-  color: var(--danger);
+.sectionHeader span {
+  font-size: 0.85rem;
 }
 
-@media (max-width: 700px) {
-  .page {
-    padding: 20px 12px;
+.agentGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.agentCard {
+  padding: 14px;
+  display: grid;
+  gap: 12px;
+  position: relative;
+  isolation: isolate;
+}
+
+.agentCard::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: 16px;
+  opacity: 0.45;
+  z-index: -1;
+}
+
+.isActive::before {
+  box-shadow: 0 0 24px rgba(34, 197, 94, 0.4);
+}
+
+.isIdle::before {
+  box-shadow: 0 0 24px rgba(148, 163, 184, 0.26);
+}
+
+.isPaused::before {
+  box-shadow: 0 0 24px rgba(251, 191, 36, 0.35);
+}
+
+.isError::before {
+  box-shadow: 0 0 24px rgba(244, 63, 94, 0.45);
+}
+
+.agentHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.agentName {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.agentRole {
+  margin: 3px 0 0;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.agentStatus {
+  align-self: flex-start;
+  border-radius: 999px;
+  padding: 5px 10px;
+  font-size: 0.76rem;
+  text-transform: uppercase;
+  border: 1px solid;
+}
+
+.isActive .agentStatus {
+  color: #7afbba;
+  border-color: rgba(34, 197, 94, 0.5);
+  background: rgba(34, 197, 94, 0.15);
+}
+
+.isIdle .agentStatus {
+  color: #e2e8f0;
+  border-color: rgba(148, 163, 184, 0.4);
+  background: rgba(148, 163, 184, 0.15);
+}
+
+.isPaused .agentStatus {
+  color: #ffe68a;
+  border-color: rgba(251, 191, 36, 0.45);
+  background: rgba(251, 191, 36, 0.14);
+}
+
+.isError .agentStatus {
+  color: #ff9ab2;
+  border-color: rgba(244, 63, 94, 0.45);
+  background: rgba(244, 63, 94, 0.14);
+}
+
+.metaGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.metaGrid p {
+  margin: 0;
+  border: 1px solid rgba(96, 123, 182, 0.25);
+  border-radius: 10px;
+  background: rgba(17, 24, 39, 0.52);
+  padding: 8px;
+  display: grid;
+  gap: 2px;
+}
+
+.metaGrid strong {
+  font-size: 0.9rem;
+  overflow-wrap: anywhere;
+}
+
+.metaGrid span {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.taskRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+  color: #d6e5ff;
+}
+
+.taskRow span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.progressRail {
+  width: 100%;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(71, 95, 147, 0.35);
+  overflow: hidden;
+}
+
+.progressRail span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #24ddff, #30f5b2);
+}
+
+.noTask {
+  margin: 0;
+  padding: 13px 10px;
+  text-align: center;
+  border-radius: 10px;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  border: 1px dashed rgba(96, 123, 182, 0.3);
+}
+
+.agentsState {
+  margin: 0;
+  grid-column: 1 / -1;
+  border: 1px dashed rgba(96, 123, 182, 0.4);
+  border-radius: 12px;
+  padding: 14px;
+  color: #b8c9ea;
+  background: rgba(13, 20, 33, 0.66);
+}
+
+.agentsError {
+  color: #ffb1c4;
+  border-color: rgba(244, 63, 94, 0.5);
+}
+
+.rightStack {
+  display: grid;
+  gap: 12px;
+  align-content: start;
+}
+
+.sideCard {
+  padding: 14px;
+}
+
+.topology {
+  margin-top: 14px;
+  min-height: 260px;
+  border: 1px solid rgba(93, 120, 173, 0.24);
+  border-radius: 14px;
+  background: radial-gradient(circle at 50% 50%, rgba(39, 232, 255, 0.08), transparent 65%);
+  position: relative;
+}
+
+.topology::before,
+.topology::after {
+  content: "";
+  position: absolute;
+  inset: 24% 20%;
+  border: 1px solid rgba(63, 148, 192, 0.35);
+  clip-path: polygon(50% 0, 100% 35%, 82% 100%, 18% 100%, 0 35%);
+}
+
+.topology::after {
+  inset: 37% 33%;
+  opacity: 0.5;
+}
+
+.node {
+  position: absolute;
+  min-width: 70px;
+  text-align: center;
+  font-size: 0.68rem;
+  padding: 6px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(96, 123, 183, 0.42);
+  background: rgba(12, 18, 32, 0.78);
+}
+
+.nexus {
+  left: 39%;
+  top: 12%;
+  color: #7affb9;
+}
+
+.scout {
+  right: 6%;
+  top: 42%;
+  color: #84eeff;
+}
+
+.architect {
+  right: 10%;
+  bottom: 12%;
+  color: #ffd269;
+}
+
+.forge {
+  left: 43%;
+  bottom: 6%;
+  color: #8df39e;
+}
+
+.sentinel {
+  left: 8%;
+  top: 48%;
+  color: #ff8ca4;
+}
+
+svg {
+  width: 100%;
+  height: 180px;
+  margin-top: 10px;
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(36, 221, 255, 0.06), rgba(6, 11, 20, 0));
+}
+
+.throughputLine {
+  fill: none;
+  stroke: var(--cyan);
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 0 8px rgba(39, 232, 255, 0.66));
+}
+
+.activityCard {
+  padding: 16px;
+}
+
+.activityCard ul {
+  margin: 14px 0 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 10px;
+}
+
+.activityCard li {
+  color: #d0def9;
+  font-size: 0.93rem;
+}
+
+.activityCard li::marker {
+  color: #30f5b2;
+}
+
+@media (max-width: 1200px) {
+  .agentGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .card {
-    padding: 14px;
+  .mainBoard {
+    grid-template-columns: 1fr;
   }
 
-  .actions {
-    justify-content: stretch;
+  .rightStack {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .dashboardPage {
+    padding: 18px 10px 30px;
   }
 
-  .actions .button {
-    width: 100%;
+  .kpiGrid,
+  .agentGrid,
+  .rightStack {
+    grid-template-columns: 1fr;
+  }
+
+  .topBar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .systemBadge {
+    align-self: flex-start;
+  }
+
+  .topology {
+    min-height: 240px;
   }
 }

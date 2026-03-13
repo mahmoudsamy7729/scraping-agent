@@ -30,6 +30,7 @@ class RunTrackingService:
             agent = await self.agents_repo.get_by_slug(session, agent_slug)
             if agent is None:
                 raise ValueError(f"Agent not found for slug '{agent_slug}'")
+            await self.agents_repo.touch_last_seen(session, agent)
             return await self.runs_repo.create(
                 session,
                 agent_id=agent.id,

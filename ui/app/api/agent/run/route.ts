@@ -17,7 +17,7 @@ export async function POST(request: Request) {
     }
 
     const base = getAgentBaseUrl(body.base);
-    const endpoint = `${base}/scrapling-agent/run-agent?prompt=${encodeURIComponent(prompt)}`;
+    const endpoint = `${base}/api/scrapling-agent/run-agent?prompt=${encodeURIComponent(prompt)}`;
     const response = await fetch(endpoint, { method: "POST" });
     const payload = await response.json();
     return NextResponse.json(payload, { status: response.status });
