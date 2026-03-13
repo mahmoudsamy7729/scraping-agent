@@ -1,13 +1,30 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from uuid import UUID
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from src.models import AgentRun, AgentRunStatus
 
 
 class AgentRunsRepository:
+    async def list_by_agent_id_with_tools(
+        self,
+        session: AsyncSession,
+        *,
+        agent_id: UUID,
+    ) -> list[AgentRun]:
+        result = await session.scalars(
+            select(AgentRun)
+            .where(AgentRun.agent_id == agent_id)
+            .options(selectinload(AgentRun.tools))
+            .order_by(AgentRun.created_at.desc())
+        )
+        return list(result)
+
     async def create(
         self,
         session: AsyncSession,

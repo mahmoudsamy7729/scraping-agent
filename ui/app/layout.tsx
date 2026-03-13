@@ -1,9 +1,22 @@
 import type { Metadata } from "next";
+import { Orbitron, Sora } from "next/font/google";
 import "./globals.css";
 
+const orbitron = Orbitron({
+  subsets: ["latin"],
+  weight: ["500", "700"],
+  variable: "--font-display"
+});
+
+const sora = Sora({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-body"
+});
+
 export const metadata: Metadata = {
-  title: "Agent Dashboard",
-  description: "Manage deals scraping agent"
+  title: "Agents Dashboard",
+  description: "Monitor orchestration, activity, and throughput of your agents"
 };
 
 export default function RootLayout({
@@ -13,7 +26,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body className={`${orbitron.variable} ${sora.variable}`}>{children}</body>
     </html>
   );
 }

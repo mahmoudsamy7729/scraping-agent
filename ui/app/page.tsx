@@ -1,173 +1,248 @@
-"use client";
+ "use client";
 
-import { FormEvent, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
-type HealthStatus = "idle" | "checking" | "online" | "offline";
+type AgentStatus = "Active" | "Idle" | "Paused" | "Error";
 
-type RunRecord = {
-  id: number;
-  prompt: string;
-  startedAt: string;
-  response: unknown;
-  error?: string;
+type Agent = {
+  id: string;
+  icon: string;
+  slug: string;
+  model: string;
+  status: AgentStatus;
+  description?: string;
+  lastSeenAt?: string;
+  updatedAt: string;
 };
 
-const DEFAULT_API_BASE = "http://localhost:8000";
+type ApiAgent = {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  model: string;
+  status: string;
+  last_seen_at: string | null;
+  updated_at: string;
+};
 
-const normalizeBaseUrl = (value: string): string => value.replace(/\/+$/, "");
+const activity = [
+  "FORGE deployed auth-service v2.1.0 to staging",
+  "NEXUS delegated data validation to SENTINEL",
+  "SENTINEL schema validation failed: missing field user_role",
+  "SCOUT initiated market data collection for Q1 2026",
+  "NEXUS re-prioritized pipeline: security audit -> deployment"
+];
+
+const throughputPath =
+  "M0,140 C30,110 55,85 85,125 C115,165 145,85 175,76 C205,67 235,130 265,87 C295,44 325,90 355,65 C385,40 415,55 445,90 C475,125 505,92 535,38";
+
+const statusClassMap: Record<AgentStatus, string> = {
+  Active: "isActive",
+  Idle: "isIdle",
+  Paused: "isPaused",
+  Error: "isError"
+};
+
+const statusFromApi = (value: string): AgentStatus => {
+  const normalized = value.trim().toLowerCase();
+  if (["active", "online", "running", "healthy"].includes(normalized)) {
+    return "Active";
+  }
+  if (["paused", "stopped"].includes(normalized)) {
+    return "Paused";
+  }
+  if (["error", "failed", "offline", "down"].includes(normalized)) {
+    return "Error";
+  }
+  return "Idle";
+};
+
+const formatDate = (value?: string): string => {
+  if (!value) {
+    return "N/A";
+  }
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "N/A";
+  }
+  return date.toLocaleString();
+};
 
 export default function Home() {
-  const [apiBase, setApiBase] = useState(DEFAULT_API_BASE);
-  const [prompt, setPrompt] = useState("");
-  const [health, setHealth] = useState<HealthStatus>("idle");
-  const [healthMessage, setHealthMessage] = useState("Not checked yet");
-  const [running, setRunning] = useState(false);
-  const [history, setHistory] = useState<RunRecord[]>([]);
+  const [agents, setAgents] = useState<Agent[]>([]);
+  const [agentsLoading, setAgentsLoading] = useState(true);
+  const [agentsError, setAgentsError] = useState<string | null>(null);
 
-  const canRun = useMemo(() => !running && prompt.trim().length > 0, [running, prompt]);
+  useEffect(() => {
+    let cancelled = false;
 
-  const checkHealth = async () => {
-    setHealth("checking");
-    setHealthMessage("Checking agent...");
-    try {
-      const response = await fetch(`/api/agent/health?base=${encodeURIComponent(normalizeBaseUrl(apiBase))}`);
-      if (!response.ok) {
-        const failed = (await response.json()) as { error?: string };
-        throw new Error(failed.error ?? `HTTP ${response.status}`);
+    const loadAgents = async () => {
+      setAgentsLoading(true);
+      setAgentsError(null);
+      try {
+        const response = await fetch("/api/agents", { cache: "no-store" });
+        const payload = (await response.json()) as ApiAgent[] | { error?: string };
+        if (!response.ok) {
+          throw new Error(
+            typeof payload === "object" && !Array.isArray(payload) ? payload.error ?? "Failed to load agents" : "Failed to load agents"
+          );
+        }
+
+        const mapped = (payload as ApiAgent[]).map((agent) => ({
+          id: agent.name,
+          icon: agent.slug.slice(0, 2).toUpperCase(),
+          slug: agent.slug,
+          model: agent.model,
+          status: statusFromApi(agent.status),
+          description: agent.description ?? undefined,
+          lastSeenAt: agent.last_seen_at ?? undefined,
+          updatedAt: agent.updated_at
+        }));
+
+        if (!cancelled) {
+          setAgents(mapped);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setAgentsError(error instanceof Error ? error.message : "Failed to load agents");
+          setAgents([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setAgentsLoading(false);
+        }
       }
-      const data = (await response.json()) as { status?: string };
-      setHealth("online");
-      setHealthMessage(data.status ? `Agent status: ${data.status}` : "Agent is online");
-    } catch (error) {
-      setHealth("offline");
-      setHealthMessage(error instanceof Error ? error.message : "Health check failed");
-    }
-  };
+    };
 
-  const onRunAgent = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const cleanedPrompt = prompt.trim();
-    if (!cleanedPrompt) {
-      return;
-    }
+    void loadAgents();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
-    setRunning(true);
-    const startedAt = new Date().toISOString();
+  const activeCount = useMemo(
+    () => agents.filter((agent) => agent.status === "Active").length,
+    [agents]
+  );
 
-    try {
-      const response = await fetch("/api/agent/run", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          prompt: cleanedPrompt,
-          base: normalizeBaseUrl(apiBase)
-        })
-      });
-      if (!response.ok) {
-        const failed = (await response.json()) as { error?: string };
-        throw new Error(failed.error ?? `HTTP ${response.status}`);
-      }
-      const data = (await response.json()) as { response?: unknown };
-      setHistory((prev) => [
-        {
-          id: Date.now(),
-          prompt: cleanedPrompt,
-          startedAt,
-          response: data.response ?? data
-        },
-        ...prev
-      ]);
-      setPrompt("");
-    } catch (error) {
-      setHistory((prev) => [
-        {
-          id: Date.now(),
-          prompt: cleanedPrompt,
-          startedAt,
-          response: null,
-          error: error instanceof Error ? error.message : "Request failed"
-        },
-        ...prev
-      ]);
-    } finally {
-      setRunning(false);
-    }
-  };
+  const kpis = useMemo(
+    () => [
+      { label: "Total Tasks", value: "6,165", hint: "Today" },
+      { label: "Active Agents", value: agentsLoading ? "--/--" : `${activeCount}/${agents.length}`, hint: "Running now" },
+      { label: "Avg Response", value: "1.2s", hint: "Last 50 jobs" },
+      { label: "Success Rate", value: "97.3%", hint: "24h window" }
+    ],
+    [activeCount, agents.length, agentsLoading]
+  );
 
   return (
-    <main className="page">
-      <section className="container">
-        <header className="header">
-          <p className="eyebrow">Deals Scraping Agent</p>
-          <h1>Management Dashboard</h1>
-          <p className="subtitle">Run prompts, track responses, and monitor API health from one place.</p>
+    <main className="dashboardPage">
+      <div className="gridBackdrop" aria-hidden="true" />
+
+      <section className="shell">
+        <header className="topBar">
+          <div>
+            <p className="eyebrow">Agent Command Center</p>
+            <h1>Agents Dashboard</h1>
+            <p className="subtitle">Multi-agent orchestration and monitoring</p>
+          </div>
+          <span className="systemBadge">System Online</span>
         </header>
 
-        <div className="card">
-          <label htmlFor="api-base" className="label">
-            Agent API Base URL
-          </label>
-          <div className="row">
-            <input
-              id="api-base"
-              className="input"
-              value={apiBase}
-              onChange={(event) => setApiBase(event.target.value)}
-              placeholder="http://localhost:8000"
-            />
-            <button type="button" className="button secondary" onClick={checkHealth} disabled={health === "checking"}>
-              {health === "checking" ? "Checking..." : "Check Health"}
-            </button>
-          </div>
-          <p className={`status ${health}`}>{healthMessage}</p>
-        </div>
+        <section className="kpiGrid">
+          {kpis.map((kpi) => (
+            <article className="kpiCard" key={kpi.label}>
+              <p>{kpi.label}</p>
+              <h2>{kpi.value}</h2>
+              <span>{kpi.hint}</span>
+            </article>
+          ))}
+        </section>
 
-        <form className="card" onSubmit={onRunAgent}>
-          <label htmlFor="prompt" className="label">
-            Prompt
-          </label>
-          <textarea
-            id="prompt"
-            className="textarea"
-            rows={5}
-            value={prompt}
-            onChange={(event) => setPrompt(event.target.value)}
-            placeholder="Example: Find latest laptop deals from Amazon and Noon."
-          />
-          <div className="actions">
-            <button type="submit" className="button" disabled={!canRun}>
-              {running ? "Running..." : "Run Agent"}
-            </button>
-          </div>
-        </form>
-
-        <section className="card">
-          <h2>Run History</h2>
-          {history.length === 0 ? (
-            <p className="muted">No runs yet.</p>
-          ) : (
-            <div className="history">
-              {history.map((item) => (
-                <article className="historyItem" key={item.id}>
-                  <p>
-                    <strong>Time:</strong> {new Date(item.startedAt).toLocaleString()}
-                  </p>
-                  <p>
-                    <strong>Prompt:</strong> {item.prompt}
-                  </p>
-                  {item.error ? (
-                    <p className="error">
-                      <strong>Error:</strong> {item.error}
-                    </p>
-                  ) : (
-                    <pre className="response">{JSON.stringify(item.response, null, 2)}</pre>
-                  )}
-                </article>
-              ))}
+        <section className="mainBoard">
+          <div className="leftStack">
+            <div className="sectionHeader">
+              <h3>Agents</h3>
+              <span>
+                {agentsLoading ? "Loading..." : `${activeCount} active`}
+              </span>
             </div>
-          )}
+
+            <div className="agentGrid">
+              {agentsLoading ? <p className="agentsState">Loading agents...</p> : null}
+              {agentsError ? <p className="agentsState agentsError">{agentsError}</p> : null}
+              {!agentsLoading && !agentsError && agents.length === 0 ? (
+                <p className="agentsState">No agents found.</p>
+              ) : null}
+
+              {!agentsLoading && !agentsError
+                ? agents.map((agent) => (
+                    <article key={agent.id} className={`agentCard ${statusClassMap[agent.status]}`}>
+                      <div className="agentHeader">
+                        <div>
+                          <p className="agentName">
+                            <span aria-hidden="true">{agent.icon}</span> {agent.id}
+                          </p>
+                          <p className="agentRole">{agent.model}</p>
+                        </div>
+                        <span className="agentStatus">{agent.status}</span>
+                      </div>
+
+                      <div className="metaGrid">
+                        <p>
+                          <strong>{agent.slug}</strong>
+                          <span>Slug</span>
+                        </p>
+                        <p>
+                          <strong>{agent.model}</strong>
+                          <span>Model</span>
+                        </p>
+                        <p>
+                          <strong>{formatDate(agent.lastSeenAt)}</strong>
+                          <span>Last Seen</span>
+                        </p>
+                        <p>
+                          <strong>{formatDate(agent.updatedAt)}</strong>
+                          <span>Updated At</span>
+                        </p>
+                      </div>
+
+                      <p className="noTask">{agent.description ?? "No description available"}</p>
+                    </article>
+                  ))
+                : null}
+            </div>
+          </div>
+
+          <aside className="rightStack">
+            <article className="sideCard">
+              <h3>Network Topology</h3>
+              <div className="topology">
+                <div className="node nexus">NEXUS</div>
+                <div className="node scout">SCOUT</div>
+                <div className="node architect">ARCHITECT</div>
+                <div className="node forge">FORGE</div>
+                <div className="node sentinel">SENTINEL</div>
+              </div>
+            </article>
+
+            <article className="sideCard">
+              <h3>Task Throughput</h3>
+              <svg viewBox="0 0 540 180" role="img" aria-label="Task throughput">
+                <path d={throughputPath} className="throughputLine" />
+              </svg>
+            </article>
+          </aside>
+        </section>
+
+        <section className="activityCard">
+          <h3>Activity Feed</h3>
+          <ul>
+            {activity.map((line) => (
+              <li key={line}>{line}</li>
+            ))}
+          </ul>
         </section>
       </section>
     </main>
