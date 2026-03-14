@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import re
+from typing import Any
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 
@@ -15,7 +16,7 @@ from src.repositories import AgentsRepository
 
 
 SessionFactory = Callable[[], AsyncSession]
-AgentRunner = Callable[[str], Awaitable[str]]
+AgentRunner = Callable[[str, dict[str, Any] | None], Awaitable[str]]
 
 
 @dataclass(frozen=True)
@@ -46,6 +47,7 @@ class OrchestratorService:
         *,
         prompt: str,
         preferred_agent_slug: str | None = None,
+        session_data: dict[str, Any] | None = None,
     ) -> tuple[str, str, str]:
         available_agents = await self._get_available_agents()
         if not available_agents:
@@ -63,7 +65,7 @@ class OrchestratorService:
             selected_slug,
             routing_reason,
         )
-        response = await handler(prompt)
+        response = await handler(prompt, session_data)
         return selected_slug, routing_reason, response
 
     async def _get_available_agents(self) -> list[AvailableAgent]:
