@@ -96,6 +96,8 @@ class AgentRun(Base):
         server_default=AgentRunStatus.STARTED.value,
     )
     input_payload: Mapped[str | None] = mapped_column(Text, nullable=True)
+    normalized_payload: Mapped[str | None] = mapped_column(Text, nullable=True)
+    schema_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     output_payload: Mapped[str | None] = mapped_column(Text, nullable=True)
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
     started_at: Mapped[datetime] = mapped_column(

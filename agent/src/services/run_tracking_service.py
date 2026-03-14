@@ -25,7 +25,14 @@ class RunTrackingService:
         self.runs_repo = runs_repo
         self.run_tools_repo = run_tools_repo
 
-    async def start_run(self, *, agent_slug: str, input_payload: str | None) -> AgentRun:
+    async def start_run(
+        self,
+        *,
+        agent_slug: str,
+        input_payload: str | None,
+        normalized_payload: str | None = None,
+        schema_name: str | None = None,
+    ) -> AgentRun:
         async with self.session_factory() as session:
             agent = await self.agents_repo.get_by_slug(session, agent_slug)
             if agent is None:
@@ -35,15 +42,26 @@ class RunTrackingService:
                 session,
                 agent_id=agent.id,
                 input_payload=input_payload,
+                normalized_payload=normalized_payload,
+                schema_name=schema_name,
             )
 
-    async def finish_run_success(self, *, run_id: UUID, output_payload: str | None) -> AgentRun:
+    async def finish_run_success(
+        self,
+        *,
+        run_id: UUID,
+        output_payload: str | None,
+        normalized_payload: str | None = None,
+        schema_name: str | None = None,
+    ) -> AgentRun:
         async with self.session_factory() as session:
             run = await self._get_run_or_raise(session, run_id)
             return await self.runs_repo.mark_success(
                 session,
                 run=run,
                 output_payload=output_payload,
+                normalized_payload=normalized_payload,
+                schema_name=schema_name,
             )
 
     async def finish_run_failed(self, *, run_id: UUID, error_message: str) -> AgentRun:
