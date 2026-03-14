@@ -31,11 +31,15 @@ class AgentRunsRepository:
         *,
         agent_id,
         input_payload: str | None,
+        normalized_payload: str | None = None,
+        schema_name: str | None = None,
     ) -> AgentRun:
         run = AgentRun(
             agent_id=agent_id,
             status=AgentRunStatus.STARTED,
             input_payload=input_payload,
+            normalized_payload=normalized_payload,
+            schema_name=schema_name,
             started_at=datetime.now(timezone.utc),
         )
         session.add(run)
@@ -49,8 +53,14 @@ class AgentRunsRepository:
         *,
         run: AgentRun,
         output_payload: str | None,
+        normalized_payload: str | None = None,
+        schema_name: str | None = None,
     ) -> AgentRun:
         run.status = AgentRunStatus.SUCCESS
+        if normalized_payload is not None:
+            run.normalized_payload = normalized_payload
+        if schema_name is not None:
+            run.schema_name = schema_name
         run.output_payload = output_payload
         run.finished_at = datetime.now(timezone.utc)
         await session.commit()
