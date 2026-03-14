@@ -1,5 +1,6 @@
 import json
 import inspect
+from urllib.parse import urlparse
 from typing import Any, Optional, Callable
 from openai import OpenAI
 from mcp import ClientSession, StdioServerParameters
@@ -9,6 +10,18 @@ from mcp.client.stdio import stdio_client
 ToolStartHook = Callable[[str, str, str], Any]
 ToolSuccessHook = Callable[[str, str, str], Any]
 ToolFailureHook = Callable[[str, str, str], Any]
+
+HTTP_TOOLS = {"get", "bulk_get"}
+BROWSER_TOOLS = {"fetch", "bulk_fetch", "stealthy_fetch", "bulk_stealthy_fetch"}
+SENSITIVE_KEYS = (
+    "authorization",
+    "cookie",
+    "token",
+    "session",
+    "secret",
+    "password",
+    "api_key",
+)
 
 
 class AgentRunner:
@@ -63,10 +76,110 @@ class AgentRunner:
         if inspect.isawaitable(result):
             await result
 
+    def _inject_session_data(
+        self,
+        *,
+        tool_name: str,
+        args: dict[str, Any],
+        session_data: Optional[dict[str, Any]],
+    ) -> dict[str, Any]:
+        if not session_data:
+            return args
+
+        cookies = session_data.get("cookies")
+        headers = session_data.get("headers")
+        merged_args = dict(args)
+
+        if cookies is not None and "cookies" not in merged_args:
+            merged_args["cookies"] = cookies
+
+        if headers:
+            if tool_name in HTTP_TOOLS and "headers" not in merged_args:
+                merged_args["headers"] = headers
+            if tool_name in BROWSER_TOOLS and "extra_headers" not in merged_args:
+                merged_args["extra_headers"] = headers
+            if tool_name in BROWSER_TOOLS and "cookies" not in merged_args:
+                cookie_header = headers.get("Cookie") if isinstance(headers, dict) else None
+                target_url = self._extract_target_url(merged_args)
+                parsed_cookies = self._cookie_header_to_browser_cookies(cookie_header, target_url)
+                if parsed_cookies:
+                    merged_args["cookies"] = parsed_cookies
+
+        return merged_args
+
+    def _extract_target_url(self, args: dict[str, Any]) -> str | None:
+        url_value = args.get("url")
+        if isinstance(url_value, str) and url_value.strip():
+            return url_value.strip()
+
+        urls_value = args.get("urls")
+        if isinstance(urls_value, list):
+            for item in urls_value:
+                if isinstance(item, str) and item.strip():
+                    return item.strip()
+
+        return None
+
+    def _cookie_header_to_browser_cookies(
+        self,
+        cookie_header: Any,
+        target_url: str | None,
+    ) -> list[dict[str, str]]:
+        if not isinstance(cookie_header, str) or not cookie_header.strip() or not target_url:
+            return []
+
+        parsed_url = urlparse(target_url)
+        if not parsed_url.scheme or not parsed_url.netloc:
+            return []
+
+        cookies: list[dict[str, str]] = []
+        for segment in cookie_header.split(";"):
+            piece = segment.strip()
+            if not piece or "=" not in piece:
+                continue
+            name, value = piece.split("=", 1)
+            name = name.strip()
+            value = value.strip()
+            if not name:
+                continue
+            cookies.append(
+                {
+                    "name": name,
+                    "value": value,
+                    "url": f"{parsed_url.scheme}://{parsed_url.netloc}",
+                }
+            )
+
+        return cookies
+
+    def _mask_sensitive(self, value: Any, key_hint: str = "") -> Any:
+        if isinstance(value, dict):
+            masked: dict[str, Any] = {}
+            for key, item in value.items():
+                lowered_key = key.lower()
+                if any(token in lowered_key for token in SENSITIVE_KEYS):
+                    masked[key] = "***"
+                else:
+                    masked[key] = self._mask_sensitive(item, key_hint=lowered_key)
+            return masked
+
+        if isinstance(value, list):
+            return [self._mask_sensitive(item, key_hint=key_hint) for item in value]
+
+        if isinstance(value, str) and any(token in key_hint for token in SENSITIVE_KEYS):
+            return "***"
+
+        return value
+
+    def _safe_args_for_hook(self, args: dict[str, Any]) -> str:
+        masked = self._mask_sensitive(args)
+        return json.dumps(masked, ensure_ascii=False)
+
     async def execute_tool_call(
         self,
         tool_call: Any,
         mcp_session: Optional[ClientSession] = None,
+        session_data: Optional[dict[str, Any]] = None,
         on_tool_start: Optional[ToolStartHook] = None,
         on_tool_success: Optional[ToolSuccessHook] = None,
         on_tool_failure: Optional[ToolFailureHook] = None,
@@ -75,12 +188,24 @@ class AgentRunner:
         raw_args = tool_call.function.arguments or "{}"
         tool_call_id = tool_call.id
 
-        await self._run_hook(on_tool_start, tool_call_id, tool_name, raw_args)
-
         try:
-            args = json.loads(raw_args)
+            parsed_args = json.loads(raw_args)
         except json.JSONDecodeError:
-            args = {}
+            parsed_args = {}
+        args = parsed_args if isinstance(parsed_args, dict) else {}
+        args = self._inject_session_data(
+            tool_name=tool_name,
+            args=args,
+            session_data=session_data,
+        )
+
+        await self._run_hook(
+            on_tool_start,
+            tool_call_id,
+            tool_name,
+            self._safe_args_for_hook(args),
+        )
+
         try:
             if tool_name in self.local_tool_map:
                 result = self.local_tool_map[tool_name](**args)
@@ -113,6 +238,7 @@ class AgentRunner:
         self,
         message: Any,
         mcp_session: Optional[ClientSession] = None,
+        session_data: Optional[dict[str, Any]] = None,
         on_tool_start: Optional[ToolStartHook] = None,
         on_tool_success: Optional[ToolSuccessHook] = None,
         on_tool_failure: Optional[ToolFailureHook] = None,
@@ -122,6 +248,7 @@ class AgentRunner:
             tool_response = await self.execute_tool_call(
                 tool_call=tool_call,
                 mcp_session=mcp_session,
+                session_data=session_data,
                 on_tool_start=on_tool_start,
                 on_tool_success=on_tool_success,
                 on_tool_failure=on_tool_failure,
@@ -135,6 +262,7 @@ class AgentRunner:
         messages: list[dict[str, Any]],
         tools: Optional[list[Any]] = None,
         mcp_session: Optional[ClientSession] = None,
+        session_data: Optional[dict[str, Any]] = None,
         on_tool_start: Optional[ToolStartHook] = None,
         on_tool_success: Optional[ToolSuccessHook] = None,
         on_tool_failure: Optional[ToolFailureHook] = None,
@@ -155,6 +283,7 @@ class AgentRunner:
             responses = await self.handle_tool_calls(
                 message=message,
                 mcp_session=mcp_session,
+                session_data=session_data,
                 on_tool_start=on_tool_start,
                 on_tool_success=on_tool_success,
                 on_tool_failure=on_tool_failure,
@@ -168,6 +297,7 @@ class AgentRunner:
         user_prompt: str,
         tools: Optional[list[Any]] = None,
         mcp: Optional[StdioServerParameters] = None,
+        session_data: Optional[dict[str, Any]] = None,
         on_tool_start: Optional[ToolStartHook] = None,
         on_tool_success: Optional[ToolSuccessHook] = None,
         on_tool_failure: Optional[ToolFailureHook] = None,
@@ -190,6 +320,7 @@ class AgentRunner:
                         messages=messages,
                         tools=all_tools,
                         mcp_session=session,
+                        session_data=session_data,
                         on_tool_start=on_tool_start,
                         on_tool_success=on_tool_success,
                         on_tool_failure=on_tool_failure,
@@ -199,6 +330,7 @@ class AgentRunner:
             messages=messages,
             tools=all_tools,
             mcp_session=None,
+            session_data=session_data,
             on_tool_start=on_tool_start,
             on_tool_success=on_tool_success,
             on_tool_failure=on_tool_failure,
@@ -210,6 +342,7 @@ class AgentRunner:
         user_prompt: str,
         tools: Optional[list[Any]] = None,
         mcp: Optional[StdioServerParameters] = None,
+        session_data: Optional[dict[str, Any]] = None,
         on_tool_start: Optional[ToolStartHook] = None,
         on_tool_success: Optional[ToolSuccessHook] = None,
         on_tool_failure: Optional[ToolFailureHook] = None,
@@ -219,6 +352,7 @@ class AgentRunner:
             user_prompt=user_prompt,
             tools=tools,
             mcp=mcp,
+            session_data=session_data,
             on_tool_start=on_tool_start,
             on_tool_success=on_tool_success,
             on_tool_failure=on_tool_failure,
